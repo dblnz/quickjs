@@ -1,4 +1,4 @@
-/*
+﻿/*
  * QuickJS Javascript Engine
  *
  * Copyright (c) 2017-2025 Fabrice Bellard
@@ -2475,6 +2475,12 @@ JSValue JS_GetClassProto(JSContext *ctx, JSClassID class_id)
 JSValue JS_GetFunctionProto(JSContext *ctx)
 {
     return js_dup(ctx->function_proto);
+}
+
+void JS_SetOPChangedHandler(JSContext *ctx, JSOPChangedHandler *cb, void *opaque)
+{
+    ctx->operation_changed = cb;
+    ctx->oc_opaque = opaque;
 }
 
 typedef enum JSFreeModuleEnum {
@@ -27274,12 +27280,14 @@ static __exception int js_parse_statement_or_decl(JSParseState *s,
     case TOK_LET:
     case TOK_CONST:
     haslet:
+        emit_source_loc(s);
         if (!(decl_mask & DECL_MASK_OTHER)) {
             js_parse_error(s, "lexical declarations can't appear in single-statement context");
             goto fail;
         }
         /* fall thru */
     case TOK_VAR:
+        emit_source_loc(s);
         if (next_token(s))
             goto fail;
         if (js_parse_var(s, PF_IN_ACCEPTED, tok, /*export_flag*/false))
@@ -27563,6 +27571,7 @@ static __exception int js_parse_statement_or_decl(JSParseState *s,
             int default_label_pos;
             BlockEnv break_entry;
 
+            emit_source_loc(s);
             if (next_token(s))
                 goto fail;
 
@@ -27582,6 +27591,7 @@ static __exception int js_parse_statement_or_decl(JSParseState *s,
             label_case = -1;
             while (s->token.val != '}') {
                 if (s->token.val == TOK_CASE) {
+                    emit_source_loc(s);
                     label1 = -1;
                     if (label_case >= 0) {
                         /* skip the case if needed */
@@ -27590,6 +27600,7 @@ static __exception int js_parse_statement_or_decl(JSParseState *s,
                     emit_label(s, label_case);
                     label_case = -1;
                     for (;;) {
+                        emit_source_loc(s);
                         /* parse a sequence of case clauses */
                         if (next_token(s))
                             goto fail;
@@ -27608,6 +27619,7 @@ static __exception int js_parse_statement_or_decl(JSParseState *s,
                         }
                     }
                 } else if (s->token.val == TOK_DEFAULT) {
+                    emit_source_loc(s);
                     if (next_token(s))
                         goto fail;
                     if (js_parse_expect(s, ':'))
