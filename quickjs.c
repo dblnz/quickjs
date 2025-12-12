@@ -505,6 +505,15 @@ struct JSContext {
                              const char *input, size_t input_len,
                              const char *filename, int line, int flags, int scope_idx);
     void *user_opaque;
+
+    int (*operation_changed)(uint8_t op,
+                             const char *filename,
+                             const char *funcname,
+                             int line,
+                             int col,
+                             void *opaque
+                             );
+    void *oc_opaque;
 };
 
 typedef union JSFloat64Union {
@@ -16678,6 +16687,35 @@ static JSValue JS_CallInternal(JSContext *caller_ctx, JSValueConst func_obj,
     for(;;) {
         int call_argc;
         JSValue *call_argv;
+
+        {
+            if (b && ctx->operation_changed != NULL) {
+                int col_num = 0;
+                int line_num = -1;
+                const char *filename = NULL;
+                const char *funcname = NULL;
+
+                uint32_t pc_index = (uint32_t)(pc - b->byte_code_buf);
+                if (b->pc2line_buf) {
+                    line_num = find_line_num(ctx, b, pc_index, &col_num);
+                }
+                filename   = b->filename     ? JS_AtomToCString(ctx, b->filename)    : NULL;
+                funcname = b->func_name ? JS_AtomToCString(ctx, b->func_name) : NULL;
+
+                int ret = 0;
+                ret = ctx->operation_changed(*pc, filename, funcname, line_num, col_num, ctx->oc_opaque);
+                if (filename) {
+                    // fprintf(stderr, "op:%d %d at %s %s:%d:%d\n", *pc, OP_return, funcname, filename, line_num, col_num);
+                    JS_FreeCString(ctx, filename);
+                    JS_FreeCString(ctx, funcname);
+                }
+
+                if(ret != 0)
+                {
+                    goto exception;
+                }
+            }
+        }
 
         SWITCH(pc) {
         CASE(OP_push_i32):
