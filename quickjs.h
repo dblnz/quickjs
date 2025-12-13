@@ -1,4 +1,4 @@
-﻿/*
+/*
  * QuickJS Javascript Engine
  *
  * Copyright (c) 2017-2024 Fabrice Bellard
