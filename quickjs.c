@@ -27783,6 +27783,7 @@ static __exception int js_parse_statement_or_decl(JSParseState *s,
                 js_parse_error(s, "expecting catch or finally");
                 goto fail;
             }
+            emit_source_loc(s);
             emit_label(s, label_finally);
             if (s->token.val == TOK_FINALLY) {
                 int saved_eval_ret_idx = 0; /* avoid warning */
@@ -27818,6 +27819,7 @@ static __exception int js_parse_statement_or_decl(JSParseState *s,
                 }
                 pop_break_entry(s->cur_func);
             }
+            emit_source_loc(s);
             emit_op(s, OP_ret);
             emit_label(s, label_end);
         }
