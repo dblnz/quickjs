@@ -409,7 +409,7 @@ jobs:
       - uses: jcbhmr/setup-wasmtime@v2
       - name: setup wasi-sdk
         run: |
-          wget -nv https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-25/wasi-sdk-25.0-x86_64-linux.deb -P /tmp
+          wget -nv https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-29/wasi-sdk-29.0-x86_64-linux.deb -P /tmp
           sudo apt install /tmp/wasi-sdk*.deb
       - name: test
         run: |
@@ -418,6 +418,11 @@ jobs:
           wasmtime run build/qjs -qd
           echo "console.log('hello wasi!');" > t.js
           wasmtime run --dir . build/qjs t.js
+      - name: build wasi reactor
+        run: |
+          cmake -B build -DCMAKE_TOOLCHAIN_FILE=/opt/wasi-sdk/share/cmake/wasi-sdk.cmake -DQJS_WASI_REACTOR=ON
+          make -C build qjs_wasi
+          ls -lh build/qjs.wasm
 
   cygwin:
     runs-on: windows-latest
@@ -773,7 +778,7 @@ jobs:
         run: |
           meson test -C build-${{ matrix.flavor }} --timeout-multiplier 5 --print-errorlogs
           meson test --benchmark -C build-${{ matrix.flavor }} --timeout-multiplier 5 --print-errorlogs
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6
         if: ${{ failure() }}
         with:
           name: ${{ matrix.platform }}-${{ matrix.mode.name }}-${{ matrix.features.name }}-${{ matrix.flavor }}-logs

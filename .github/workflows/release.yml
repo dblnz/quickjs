@@ -48,7 +48,7 @@ jobs:
         run: |
           file build/*-linux-${{matrix.arch}}
       - name: upload
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: qjs-linux-${{matrix.arch}}
           path: build/*-linux-${{matrix.arch}}
@@ -70,13 +70,13 @@ jobs:
         run: |
           lipo -info build/qjs-darwin build/qjsc-darwin
       - name: upload amalgamation
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: quickjs-amalgam.zip
           path: build/quickjs-amalgam.zip
           compression-level: 0 # already compressed
       - name: upload
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: qjs-darwin
           path: build/*-darwin
@@ -113,7 +113,7 @@ jobs:
           file build/qjs-windows-${{matrix.arch}}.exe
           ldd build/qjs-windows-${{matrix.arch}}.exe build/qjsc-windows-${{matrix.arch}}.exe
       - name: upload
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: qjs-windows-${{matrix.arch}}
           path: build/*-windows-${{matrix.arch}}.exe
@@ -124,25 +124,32 @@ jobs:
       - uses: actions/checkout@v6
       - name: setup wasi-sdk
         run: |
-          wget -nv https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-25/wasi-sdk-25.0-x86_64-linux.deb -P /tmp
+          wget -nv https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-29/wasi-sdk-29.0-x86_64-linux.deb -P /tmp
           sudo apt install /tmp/wasi-sdk*.deb
       - name: build
         run: |
           cmake -B build -DCMAKE_TOOLCHAIN_FILE=/opt/wasi-sdk/share/cmake/wasi-sdk.cmake
           make -C build qjs_exe
           mv build/qjs build/qjs-wasi.wasm
+      - name: build wasi reactor
+        run: |
+          cmake -B build -DCMAKE_TOOLCHAIN_FILE=/opt/wasi-sdk/share/cmake/wasi-sdk.cmake -DQJS_WASI_REACTOR=ON
+          make -C build qjs_wasi
+          mv build/qjs.wasm build/qjs-wasi-reactor.wasm
       - name: upload
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: qjs-wasi
-          path: build/qjs-wasi.wasm
+          path: |
+            build/qjs-wasi.wasm
+            build/qjs-wasi-reactor.wasm
 
   upload-to-release:
     needs: [linux, macos, windows, wasi, check_meson_version]
     runs-on: ubuntu-22.04
     steps:
       - name: get assets
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           path: build
           merge-multiple: true

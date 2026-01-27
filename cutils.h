@@ -50,13 +50,17 @@ extern "C" {
 #elif defined(_WIN32)
 #include <windows.h>
 #endif
-#if !defined(_WIN32) && !defined(EMSCRIPTEN) && !defined(__wasi__)
+#if !defined(_WIN32) && !defined(EMSCRIPTEN) && !defined(__wasi__) && !defined(__DJGPP)
 #include <errno.h>
 #include <pthread.h>
 #endif
 #if !defined(_WIN32)
 #include <limits.h>
 #include <unistd.h>
+#endif
+
+#if defined(__sun)
+#undef __maybe_unused
 #endif
 
 #if defined(_MSC_VER) && !defined(__clang__)
@@ -73,15 +77,6 @@ extern "C" {
 #  define force_inline inline __attribute__((always_inline))
 #  define no_inline __attribute__((noinline))
 #  define __maybe_unused __attribute__((unused))
-#endif
-
-#if defined(_MSC_VER) && !defined(__clang__)
-#include <math.h>
-#define INF INFINITY
-#define NEG_INF -INFINITY
-#else
-#define INF (1.0/0.0)
-#define NEG_INF (-1.0/0.0)
 #endif
 
 #ifndef offsetof
@@ -587,7 +582,7 @@ int js_exepath(char* buffer, size_t* size);
 
 /* Cross-platform threading APIs. */
 
-#if defined(EMSCRIPTEN) || defined(__wasi__)
+#if defined(EMSCRIPTEN) || defined(__wasi__) || defined(__DJGPP)
 
 #define JS_HAVE_THREADS 0
 

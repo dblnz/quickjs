@@ -32,6 +32,12 @@ else()
     set(WATCHOS FALSE)
 endif()
 
+if(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
+    set(SUNOS TRUE)
+else()
+    set(SUNOS FALSE)
+endif()
+
 if(NOT CMAKE_BUILD_TYPE)
     message(STATUS "No build type selected, default to Release")
     set(CMAKE_BUILD_TYPE "Release")
@@ -62,7 +68,9 @@ xcheck_add_c_compiler_flag(-Wno-unused-but-set-variable)
 xcheck_add_c_compiler_flag(-Wno-unused-result)
 xcheck_add_c_compiler_flag(-Wno-stringop-truncation)
 xcheck_add_c_compiler_flag(-Wno-array-bounds)
+if(NOT SUNOS)
 xcheck_add_c_compiler_flag(-funsigned-char)
+endif()
 
 # ClangCL is command line compatible with MSVC, so 'MSVC' is set.
 if(MSVC)
@@ -327,6 +335,36 @@ target_link_libraries(qjs_exe qjs)
 if(NOT WIN32)
     set_target_properties(qjs_exe PROPERTIES ENABLE_EXPORTS TRUE)
 endif()
+
+# WASI Reactor
+#
+
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+    option(QJS_WASI_REACTOR "Build WASI reactor (exports library functions, no _start)" OFF)
+    if(QJS_WASI_REACTOR)
+        add_executable(qjs_wasi
+            quickjs-libc.c
+            qjs-wasi-reactor.c
+        )
+        set_target_properties(qjs_wasi PROPERTIES
+            OUTPUT_NAME "qjs"
+            SUFFIX ".wasm"
+        )
+        target_compile_definitions(qjs_wasi PRIVATE ${qjs_defines})
+        target_link_libraries(qjs_wasi qjs)
+        target_link_options(qjs_wasi PRIVATE
+            -mexec-model=reactor
+            # Export all symbols with default visibility (JS_EXTERN functions)
+            -Wl,--export-dynamic
+            # Memory management (libc symbols need explicit export)
+            -Wl,--export=malloc
+            -Wl,--export=free
+            -Wl,--export=realloc
+            -Wl,--export=calloc
+        )
+    endif()
+endif()
+
 if(QJS_BUILD_CLI_WITH_MIMALLOC OR QJS_BUILD_CLI_WITH_STATIC_MIMALLOC)
     find_package(mimalloc REQUIRED)
     # Upstream mimalloc doesn't provide a way to know if both libraries are supported.

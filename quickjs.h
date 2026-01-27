@@ -813,8 +813,8 @@ static inline JSValue JS_NewString(JSContext *ctx, const char *str) {
 }
 // makes a copy of the input; does not check if the input is valid UTF-16,
 // that is the responsibility of the caller
-JS_EXTERN JSValue JS_NewTwoByteString(JSContext *ctx, const uint16_t *buf,
-                                      size_t len);
+JS_EXTERN JSValue JS_NewStringUTF16(JSContext *ctx, const uint16_t *buf,
+                                    size_t len);
 JS_EXTERN JSValue JS_NewAtomString(JSContext *ctx, const char *str);
 JS_EXTERN JSValue JS_ToString(JSContext *ctx, JSValueConst val);
 JS_EXTERN JSValue JS_ToPropertyKey(JSContext *ctx, JSValueConst val);
@@ -827,8 +827,21 @@ static inline const char *JS_ToCString(JSContext *ctx, JSValueConst val1)
 {
     return JS_ToCStringLen2(ctx, NULL, val1, 0);
 }
+// returns a utf-16 version of the string in native endianness; the
+// string is not nul terminated and can contain unmatched surrogates
+// |*plen| is in uint16s, not code points; a surrogate pair such as
+// U+D834 U+DF06 has len=2; an unmatched surrogate has len=1
+JS_EXTERN const uint16_t *JS_ToCStringLenUTF16(JSContext *ctx, size_t *plen,
+                                               JSValueConst val1);
+static inline const uint16_t *JS_ToCStringUTF16(JSContext *ctx,
+                                                JSValueConst val1)
+{
+    return JS_ToCStringLenUTF16(ctx, NULL, val1);
+}
 JS_EXTERN void JS_FreeCString(JSContext *ctx, const char *ptr);
 JS_EXTERN void JS_FreeCStringRT(JSRuntime *rt, const char *ptr);
+JS_EXTERN void JS_FreeCStringUTF16(JSContext *ctx, const uint16_t *ptr);
+JS_EXTERN void JS_FreeCStringRT_UTF16(JSRuntime *rt, const uint16_t *ptr);
 
 JS_EXTERN JSValue JS_NewObjectProtoClass(JSContext *ctx, JSValueConst proto,
                                          JSClassID class_id);
@@ -1077,15 +1090,36 @@ typedef char *JSModuleNormalizeFunc(JSContext *ctx,
 typedef JSModuleDef *JSModuleLoaderFunc(JSContext *ctx,
                                         const char *module_name, void *opaque);
 
+/* module loader with import attributes support */
+typedef JSModuleDef *JSModuleLoaderFunc2(JSContext *ctx,
+                                         const char *module_name, void *opaque,
+                                         JSValueConst attributes);
+
+/* return -1 if exception, 0 if OK */
+typedef int JSModuleCheckSupportedImportAttributes(JSContext *ctx, void *opaque,
+                                                   JSValueConst attributes);
+
 /* module_normalize = NULL is allowed and invokes the default module
    filename normalizer */
 JS_EXTERN void JS_SetModuleLoaderFunc(JSRuntime *rt,
                                       JSModuleNormalizeFunc *module_normalize,
                                       JSModuleLoaderFunc *module_loader, void *opaque);
+
+/* same as JS_SetModuleLoaderFunc but with import attributes support */
+JS_EXTERN void JS_SetModuleLoaderFunc2(JSRuntime *rt,
+                                       JSModuleNormalizeFunc *module_normalize,
+                                       JSModuleLoaderFunc2 *module_loader,
+                                       JSModuleCheckSupportedImportAttributes *module_check_attrs,
+                                       void *opaque);
+
 /* return the import.meta object of a module */
 JS_EXTERN JSValue JS_GetImportMeta(JSContext *ctx, JSModuleDef *m);
 JS_EXTERN JSAtom JS_GetModuleName(JSContext *ctx, JSModuleDef *m);
 JS_EXTERN JSValue JS_GetModuleNamespace(JSContext *ctx, JSModuleDef *m);
+
+/* associate a JSValue to a C module */
+JS_EXTERN int JS_SetModulePrivateValue(JSContext *ctx, JSModuleDef *m, JSValue val);
+JS_EXTERN JSValue JS_GetModulePrivateValue(JSContext *ctx, JSModuleDef *m);
 
 /* JS Job support */
 
